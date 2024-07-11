@@ -1,0 +1,163 @@
+import heapq
+
+class Mapa:
+    VACIO = '.'
+    OBSTACULO = '#'
+    EDIFICIO = 'E'
+    AGUA = 'A'
+    CALLE = 'C'
+    INICIO = 'I'
+    FIN = 'F'
+
+    def __init__(self, tamaño):
+        self.tamaño = tamaño
+        self.mapa = [[self.VACIO for _ in range(tamaño)] for _ in range(tamaño)]
+        self.inicio = None
+        self.fin = None
+
+    def imprimir(self):
+        for fila in self.mapa:
+            print(' '.join(fila))
+
+    def agregar_inicio(self, x, y):
+        self.inicio = (x, y)
+        self.mapa[x][y] = self.INICIO
+
+    def agregar_fin(self, x, y):
+        self.fin = (x, y)
+        self.mapa[x][y] = self.FIN
+
+    def agregar_obstaculo(self, x, y):
+        self.mapa[x][y] = self.OBSTACULO
+
+    def agregar_edificio(self, x, y):
+        self.mapa[x][y] = self.EDIFICIO
+
+    def agregar_agua(self, x, y):
+        self.mapa[x][y] = self.AGUA
+
+    def es_accesible(self, x, y):
+        return 0 <= x < self.tamaño and 0 <= y < self.tamaño and self.mapa[x][y] not in [self.OBSTACULO, self.EDIFICIO, self.AGUA]
+
+    def eliminar_elemento(self, x, y):
+        self.mapa[x][y] = self.VACIO
+
+class AStar:
+    def __init__(self, mapa):
+        self.mapa = mapa
+
+    def heuristica(self, a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    def reconstruir_camino(self, came_from, actual):
+        camino = [actual]
+        while actual in came_from:
+            actual = came_from[actual]
+            camino.append(actual)
+        camino.reverse()
+        return camino
+
+    def encontrar_ruta(self):
+        open_set = []
+        heapq.heappush(open_set, (0, self.mapa.inicio))
+        came_from = {}
+        g_score = {self.mapa.inicio: 0}
+        f_score = {self.mapa.inicio: self.heuristica(self.mapa.inicio, self.mapa.fin)}
+
+        while open_set:
+            _, actual = heapq.heappop(open_set)
+
+            if actual == self.mapa.fin:
+                return self.reconstruir_camino(came_from, actual)
+
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                vecino = (actual[0] + dx, actual[1] + dy)
+                if self.mapa.es_accesible(vecino[0], vecino[1]):
+                    tentative_g_score = g_score[actual] + 1
+                    if vecino not in g_score or tentative_g_score < g_score[vecino]:
+                        came_from[vecino] = actual
+                        g_score[vecino] = tentative_g_score
+                        f_score[vecino] = tentative_g_score + self.heuristica(vecino, self.mapa.fin)
+                        heapq.heappush(open_set, (f_score[vecino], vecino))
+
+        return None
+
+# Función para obtener coordenadas del usuario.
+def obtener_coordenadas(mensaje, tamaño):
+    while True:
+        try:
+            x, y = map(int, input(mensaje).split())
+            if 0 <= x < tamaño and 0 <= y < tamaño:
+                return (x, y)
+            else:
+                print(f"Por favor, ingrese coordenadas dentro del rango 0 a {tamaño-1}.")
+        except ValueError:
+            print("Por favor, ingrese dos números enteros separados por un espacio.")
+
+# Crear el mapa y el algoritmo A*
+tamaño_mapa = 15
+mapa = Mapa(tamaño_mapa)
+
+print("Mapa inicial:")
+mapa.imprimir()
+
+# Obtener coordenadas de inicio y fin del usuario.
+inicio = obtener_coordenadas("Ingrese las coordenadas de inicio (x y): ", tamaño_mapa)
+fin = obtener_coordenadas("Ingrese las coordenadas de fin (x y): ", tamaño_mapa)
+
+mapa.agregar_inicio(inicio[0], inicio[1])
+mapa.agregar_fin(fin[0], fin[1])
+
+# Preguntar al usuario si desea agregar obstáculos.
+if input("¿Desea agregar obstáculos? (s/n): ").lower() == 's':
+    num_obstaculos = int(input("Ingrese el número de obstáculos: "))
+    for _ in range(num_obstaculos):
+        obstaculo = obtener_coordenadas("Ingrese las coordenadas del obstáculo (x y): ", tamaño_mapa)
+        mapa.agregar_obstaculo(obstaculo[0], obstaculo[1])
+
+# Preguntar al usuario si desea agregar edificios.
+if input("¿Desea agregar edificios? (s/n): ").lower() == 's':
+    num_edificios = int(input("Ingrese el número de edificios: "))
+    for _ in range(num_edificios):
+        edificio = obtener_coordenadas("Ingrese las coordenadas del edificio (x y): ", tamaño_mapa)
+        mapa.agregar_edificio(edificio[0], edificio[1])
+
+# Preguntar al usuario si desea agregar áreas con agua.
+if input("¿Desea agregar áreas con agua? (s/n): ").lower() == 's':
+    num_agua = int(input("Ingrese el número de áreas con agua: "))
+    for _ in range(num_agua):
+        agua = obtener_coordenadas("Ingrese las coordenadas del agua (x y): ", tamaño_mapa)
+        mapa.agregar_agua(agua[0], agua[1])
+
+# Imprimir el mapa con los elementos agregados.
+print("\nMapa con los elementos agregados:")
+mapa.imprimir()
+
+# Preguntar al usuario si desea eliminar elementos.
+if input("¿Desea eliminar elementos del mapa? (s/n): ").lower() == 's':
+    while True:
+        tipo_elemento = input("¿Qué desea eliminar? (obstáculo, edificio, agua): ").lower()
+        if tipo_elemento in ["obstáculo", "edificio", "agua"]:
+            break
+        else:
+            print("Tipo de elemento no válido. Intente nuevamente.")
+    
+    num_eliminar = int(input(f"Ingrese el número de {tipo_elemento}s a eliminar: "))
+    for _ in range(num_eliminar):
+        x, y = obtener_coordenadas(f"Ingrese las coordenadas del {tipo_elemento} a eliminar (x y): ", tamaño_mapa)
+        mapa.eliminar_elemento(x, y)
+
+# Crear la instancia del algoritmo A* y encontrar la ruta
+a_star = AStar(mapa)
+ruta = a_star.encontrar_ruta()
+
+# Actualizar el mapa con la ruta encontrada.
+if ruta:
+    for (x, y) in ruta:
+        if mapa.mapa[x][y] not in [mapa.INICIO, mapa.FIN]:
+            mapa.mapa[x][y] = mapa.CALLE
+
+    print("\nMapa con la ruta encontrada:")
+    mapa.imprimir()
+else:
+    print("No se encontró una ruta.")
